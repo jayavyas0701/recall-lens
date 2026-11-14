@@ -1,0 +1,151 @@
+/* OWNER: orchestrator — Context Vault design system */
+@import 'tailwindcss';
+@import '@fontsource/plus-jakarta-sans/400.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+@import '@fontsource/plus-jakarta-sans/800.css';
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/600.css';
+@import '@fontsource/space-grotesk/700.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'Plus Jakarta Sans', ui-sans-serif, sans-serif;
+
+  --color-canvas: #fafaff;
+  --color-ink: #1e1b3a;
+  --color-ink-soft: #5b5875;
+  --color-ink-faint: #9a97b3;
+  --color-line: #ece9fb;
+
+  --color-violet: #7c3aed;
+  --color-pink: #ec4899;
+  --color-orange: #f59e0b;
+  --color-cyan: #06b6d4;
+  --color-lime: #84cc16;
+  --color-danger: #ef4444;
+
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+
+  --shadow-glow-violet: 0 10px 40px -10px rgb(124 58 237 / 0.45);
+  --shadow-glow-pink: 0 10px 40px -10px rgb(236 72 153 / 0.45);
+  --shadow-soft: 0 1px 2px rgb(30 27 58 / 0.04), 0 8px 30px -8px rgb(124 58 237 / 0.18);
+
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-ring: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-gradient: gradient-pan 8s ease infinite;
+  --animate-bounce-soft: bounce-soft 3s ease-in-out infinite;
+
+  @keyframes shimmer {
+    from { transform: translateX(-120%) skewX(-20deg); }
+    to { transform: translateX(220%) skewX(-20deg); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgb(236 72 153 / 0.5); }
+    70% { box-shadow: 0 0 0 16px rgb(236 72 153 / 0); }
+    100% { box-shadow: 0 0 0 0 rgb(236 72 153 / 0); }
+  }
+  @keyframes gradient-pan {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  @keyframes bounce-soft {
+    0%, 100% { transform: translateY(0); }
+    12% { transform: translateY(-10px); }
+    24% { transform: translateY(0); }
+    32% { transform: translateY(-4px); }
+    40% { transform: translateY(0); }
+  }
+}
+
+:root {
+  /* Theme-dependent tokens. "vibrant" = default demo look, "light" = calmer. */
+  --cv-bg: #fafaff;
+  --cv-aurora-opacity: 0.55;
+  --cv-card: rgb(255 255 255 / 0.72);
+  --cv-card-border: rgb(255 255 255 / 0.9);
+  --cv-sidebar: linear-gradient(180deg, #ffffff 0%, #f6f2ff 100%);
+  --cv-grad: linear-gradient(135deg, #7c3aed 0%, #ec4899 55%, #f59e0b 100%);
+  --cv-grad-cool: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+  --cv-grad-fresh: linear-gradient(135deg, #06b6d4 0%, #84cc16 100%);
+  --cv-grad-warm: linear-gradient(135deg, #ec4899 0%, #f59e0b 100%);
+}
+html[data-theme='light'] {
+  --cv-aurora-opacity: 0.18;
+  --cv-card: rgb(255 255 255 / 0.92);
+  --cv-sidebar: #ffffff;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--cv-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+input, textarea, [contenteditable], .selectable { user-select: text; }
+h1, h2, h3, h4, .font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
+
+/* macOS drag region for the hidden-inset title bar */
+.drag { -webkit-app-region: drag; }
+.no-drag { -webkit-app-region: no-drag; }
+
+@utility glass {
+  background: var(--cv-card);
+  border: 1px solid var(--cv-card-border);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: var(--shadow-soft);
+}
+@utility bg-grad { background-image: var(--cv-grad); }
+@utility bg-grad-cool { background-image: var(--cv-grad-cool); }
+@utility bg-grad-fresh { background-image: var(--cv-grad-fresh); }
+@utility bg-grad-warm { background-image: var(--cv-grad-warm); }
+@utility text-grad {
+  background-image: var(--cv-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@utility grad-animate {
+  background-size: 200% 200%;
+  animation: var(--animate-gradient);
+}
+
+/* Shimmer sweep for CTAs: add `shimmer` to a relatively-positioned, overflow-hidden element */
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  transform: translateX(-120%) skewX(-20deg);
+  pointer-events: none;
+}
+.shimmer:hover::after { animation: var(--animate-shimmer); }
+
+/* Pretty thin scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgb(124 58 237 / 0.18); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: rgb(124 58 237 / 0.35); background-clip: content-box; border: 3px solid transparent; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { from { opacity: 0; scale: 0.96; } to { opacity: 1; scale: 1; } }
+@keyframes shimmer-x { to { transform: translateX(100%); } }

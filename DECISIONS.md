@@ -1,0 +1,72 @@
+# Decisions log
+
+One line per meaningful decision, newest at the bottom. (O = orchestrator, A–D = feature subagents.)
+
+- O: Scaffolded by hand on electron-vite 6 + Vite 8 + React 19 + TS 5.9 (instead of the interactive template) for a deterministic, non-interactive setup.
+- O: TypeScript pinned to ~5.9 — npm "latest" is TS 7 (native port); 5.9 is the safe choice for tooling compatibility.
+- O: Database is **sql.js (WASM SQLite)** instead of better-sqlite3 — zero native rebuilds on the demo laptop, same SQL. DB is persisted atomically to `~/ContextVault/vault.db` (debounced 250 ms + flush on quit).
+- O: DB and config always live in `~/ContextVault/` even when the recordings folder is changed, so the MCP server can always find the DB.
+- O: Screenshots are stored in `recordings/screenshots/` (separate from `recordings/screen/` videos) so Clean Up lists only real recordings.
+- O: Recordings are served to the UI through a custom `cv-media://` protocol that only serves files inside the vault folders — no `file://` access from the renderer.
+- O: `getDisplayMedia` auto-selects the primary screen (no picker) via `setDisplayMediaRequestHandler`; loopback system audio is requested on Windows/macOS 13+ and gracefully dropped elsewhere.
+- O: shadcn/ui components are written in-repo (button, card, dialog, tabs, checkbox, switch, badge, input, skeleton, progress) on Radix primitives, rather than via the shadcn CLI (no interactive prompts, Tailwind v4 native).
+- O: Tailwind v4 with `@theme` tokens; custom utilities `glass`, `bg-grad*`, `text-grad`, `grad-animate`. Renamed an early `bg-animated` utility because tailwind-merge treated it as a bg-color and silently dropped `bg-grad`.
+- O: Fonts bundled locally via @fontsource (Plus Jakarta Sans + Space Grotesk) — works offline on stage.
+- O: Auth session persists locally in the settings table (`auth:currentUserId`) so relaunching keeps you signed in. Passwords: bcryptjs, cost 10, min 8 chars.
+- O: Sign-up shows an in-card "Welcome to your Vault 🎉" moment with confetti for 1.7 s before moving to onboarding, so judges actually see it.
+- O: Onboarding never blocks: every step can be skipped; system audio shows "Not available on this OS, mic will be used" where unsupported.
+- O: Theme toggle = `data-theme="vibrant" | "light"` on <html>; vibrant has stronger aurora + translucent cards, light is calmer.
+- O: Global search (⌘K) searches transcript segments AND screen descriptions with highlighted matches; clicking opens the session in Summary & Ask.
+- O: A demo-session fixture (Tokyo trip, 19 transcript segments, 12 screen events, full summary + SVG thumbnail) lives in `src/main/ipc/demo.ts` and is shared by every feature.
+- O: Missing ANTHROPIC_API_KEY → dismissible "Demo AI mode" banner + mock AI everywhere; never a crash.
+- O: Added a headless smoke-test harness (`CV_SMOKE_SCRIPT` + `scripts-smoke.sh`, Xvfb) so features can be verified with real screenshots during the build.
+- C: Seed open loads Priya 3 / Marcus 5 / Sofia 4 / Kenji 4 / Dana 6 so the first demo ticket is CV-1042 → Priya, and round-robin tie-breaks are visible within 2–3 tickets (CV-1043 Sofia, CV-1044 Kenji, CV-1045 Priya).
+- C: Ticket code = CV-(1000+id); routing pick, code and round-robin pointer (`support:rrLast`) written in one transaction. "Open" = status ≠ resolved.
+- C: Routing is a pure exported `pickAgent(loads, lastAssignedId)`: fewest open, ties → first tied id after the last assigned, wrapping around.
+- C: Support bot (Vee, claude-haiku-5-5) sends at most the last 12 turns; any error falls back to keyword FAQ answers. Typing indicator shows ≥700 ms for natural pacing.
+- C: Ticket form pre-fills the subject from the user's last chat message; widget chat history is in-memory only.
+- C: Admin · Routing panel highlights "Next ticket goes to" (main returns `isNext` on AgentLoad) with a dashed NEXT bar in the chart.
+- O: Toasts moved to bottom-center so they don't cover the sidebar profile card or the support bubble.
+- D: Checkout is mock-only: no card inputs anywhere, a static "•••• 4242 · Demo" visual, "Demo mode, no real payment" banner, $0.00 charged.
+- D: Demo sessions don't count toward the Free plan's 5-session limit (the usage meter says so).
+- D: Yearly = 20% off monthly (Pro $7.20/mo · $86.40/yr, Team $23.20/mo · $278.40/yr). Downgrades/switches use the same dialog without confetti.
+- D: Feedback: one card state per session (existing feedback opens in the "Thanks!" state; "Give more feedback" adds a new row); emoji whitelisted server-side to 😍 👍 😐 👎.
+- D: "Open System Settings" buttons only appear on macOS/Windows; Linux shows a short note.
+- O: AppShell now freezes the route outlet (`useOutlet`) inside AnimatePresence — fixes a blank-page bug where an exiting page rendered the new route and its exit never completed (found by D).
+- A: Recorder state lives in a module-level store (`useSyncExternalStore`), so recording continues when the panel is closed and the top-bar button shows progress.
+- A: Mic-only and screen-only sessions both work; if both fail no session is created. Discard = `finalize` with no media → session + screenshots removed (screenshots go to Trash).
+- A: Screenshots at t=2, 15, 30 … 165 s, fire-and-forget; post-processing waits ≤8 s for pending descriptions. Auto-stop via 180 s timer + tick check; warning toast at 2:45.
+- A: Free plan limit is soft: at 5/5 the recorder shows a friendly upgrade notice but "Record anyway" still works (no dark patterns).
+- A: Stale 'recording' rows older than 10 min (crash leftovers) are cleaned up on the next recording.
+- A: Deletes only accept files directly inside recordings/audio or recordings/screen; `shell.trashItem` (recoverable), falling back to `<root>/.trash`, never a permanent delete. A session left with no media is removed with its screenshots/transcripts.
+- A: Play dialog syncs the screen video with the separate mic track; WebM duration fix for MediaRecorder files; demo sessions show the transcript.
+- O: Fixed Dialog pop-in animation to use the `scale` property (it was fighting Tailwind v4's separate `translate` property and offsetting dialogs).
+- O: Kept discard via `finalize(null, null)` rather than adding a new IPC channel (works, fewer moving parts before the demo).
+- B: Local Whisper runs in a module Web Worker (transformers.js): WebGPU (fp32 encoder / q4 decoder) when available, else wasm q8; onnx-community/whisper-base.en → Xenova/whisper-tiny.en fallback; worker stays alive so the model stays loaded. Silent audio saves zero segments.
+- B: Pipeline never throws: if transcription fails the summary is built from screen events; status ends `ready` if either step succeeded, else `error`.
+- B: Time-window parser handles last/past/first N seconds/minutes, beginning/middle/end, "between 1:00 and 2:00", "at 2:10"; empty windows fall back to the whole session and the answer says so. Duplicated in main and renderer (composite tsconfigs) for the "context used" hint.
+- B: Summaries: Sonnet with strict JSON, defensive parsing + validation, mock fallback on any failure. Generated title only replaces default/previous generated titles — never a user's rename.
+- B: Ask Claude sends the last 3 Q&A turns as history for follow-ups; greets by name on the first question or when the user introduces themselves; partial streams are kept with a note on failure.
+- B: Action-item checkboxes persist per session in settings (`actions:<id>`); timeline has a Highlights / Everything toggle.
+- O: `cv-media://` now `corsEnabled` + `Access-Control-Allow-Origin` so the renderer can fetch() recorded audio for local Whisper (found by B).
+- O: Support bubble docks into the sidebar's empty area on Summary & Ask so it never covers the chat composer or summary content.
+- O: MCP server is a stdio .mts script run with tsx; it opens a fresh read-only snapshot of vault.db per call and scopes to the signed-in app user.
+- Review: `cv-media://` now resolves paths and serves only recordings/audio, recordings/screen and recordings/screenshots (blocked `..` traversal, sibling-prefix tricks and the DB). `showItem` validated the same way.
+- Review: "Load demo session" replaces any previous demo copy and is stamped as just-ended, so it becomes the Latest session after a failed live recording.
+- Review: Self-introduction detection is case-insensitive ("Hey, I'm Shilpa…" greets on follow-ups too).
+- Review: Anthropic client uses a 30 s timeout / 1 retry and local Whisper a 150 s timeout, so flaky stage Wi-Fi falls back to mock/screen-only quickly instead of hanging.
+- Review: Recorder panel auto-minimizes ~1.4 s after start (before the first screenshot) so Claude describes your work, not the recorder; the top-bar pill keeps the countdown.
+- Review: Clean Up tile opens `<root>/recordings` (not the root with vault.db). Deleting a session also trashes `session-<id>.txt/.json`.
+- Review: Support window opens to the right when docked in the sidebar on Summary & Ask; widget root is `no-drag` for the macOS hidden title bar. Header z-index above the API-key banner so search results aren't covered.
+- Review: MCP server refuses to answer when nobody is signed in (no cross-user reads). Onboarding stepper only shows ✓ for actually granted steps.
+- O: `npm run dev` first runs scripts/ensure-electron.cjs, which downloads the Electron binary if npm skipped Electron's postinstall (seen on the demo Mac: "Electron uninstall").
+- O (user feedback): Settings → AI & privacy can save the Anthropic key (verified with a zero-token `models.list` call) to `~/ContextVault/.env` (chmod 600) and applies it instantly — no file editing or restart. The banner links there.
+- O (user feedback): Ask Claude header shows "Live · claude-sonnet-5-5" or "Demo mode · offline", so it's always clear whether real Claude is answering.
+- O: `screen_events.screen_text` column (migration) holds on-device screen context (app, window title, URL, OCR text).
+- C (user feedback): Support is user-facing only — the admin routing chart, queue totals, agent loads and "next ticket goes to" hints were removed (AdminRouting.tsx deleted). Users see their own tickets (priority, status, assigned agent) with status filter chips; the widget still confirms "Ticket #CV-… assigned to <agent> (<email>) 🎧". Routing logic unchanged.
+- A (user feedback): On-device screen context at every screenshot — macOS frontmost window (CoreGraphics via JXA, no extra permission), browser tab title + URL (AppleScript; one-time Automation prompt; denial cached per session), and Apple Vision OCR (≤1,500 chars). Windows/Linux get best-effort window titles. Stored in `screen_text`; never logged (lengths only).
+- A: Offline describer turns app/title/URL/OCR into specific lines ("Searching Google for "…" — top results: …", "Editing "Q1 Plan" in Google Docs", "Reviewing PR #42 …") — "(demo description)" removed. With an API key, Claude Haiku sees the image plus this context; the offline line is the fallback.
+- A: URLs are sanitized (tokens/auth/code/key params, credentials, fragments stripped; ≤300 chars) before storage or prompts. Context for Claude includes per-event URL + 200-char visible-text excerpt (2,400 total cap); search and MCP include it too.
+- O (user feedback): Ask Claude defaults to **Smart** mode — recording first (quoted with timestamps), then Claude's own knowledge plus Anthropic's server-side web search (`web_search_20250305`, max 3 uses) for anything beyond it, labeled "From your recording / Beyond your recording", with clickable source links. **Recording only** mode keeps the strict, never-guess behaviour. Mode persists per user. If web search is unavailable for the key, it retries once without it.
+- O (user feedback): **Per-session access control.** Each session has 4 switches: Claude AI access, Claude Desktop (MCP) access, show in search, lock with password. Enforced in the main process: AI off → screenshot descriptions, summaries and answers run on-device only (no Anthropic or OpenAI calls); MCP off or locked → invisible to MCP tools; search off or locked → excluded from Cmd+K; locked → transcript, summary, Q&A history redacted, media blocked (403) by cv-media, summarize refused, until the account password (bcrypt) unlocks it for this app run ("Lock now" re-locks). The recorder asks "Let Claude see this session" before recording (remembered as default).
+- O (user feedback): Claude-access OFF now means the assistant gets *nothing* from that session — no transcript, no screen events, no earlier Q&A — instead of an on-device answer built from it. Recording-only mode refuses; Smart mode can still answer general questions and says plainly it can't see the session. Ask panel shows a "Claude can't see this session" bar with an Allow Claude button.
